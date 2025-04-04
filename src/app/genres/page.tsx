@@ -79,7 +79,7 @@ export default function GenresPage() {
   }, []);
   
   return (
-    <div className="min-h-screen bg-gray-900 py-20 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-900 py-20 pt-28 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500">

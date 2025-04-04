@@ -43,7 +43,7 @@ export default function ArtistsPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 pt-24">
         <h1 className="text-3xl font-bold mb-8">Artists</h1>
         <div className="text-center">Loading artists...</div>
       </div>
@@ -52,7 +52,7 @@ export default function ArtistsPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8 pt-24">
         <h1 className="text-3xl font-bold mb-8">Artists</h1>
         <div className="text-red-600">Error: {error}</div>
       </div>
@@ -60,7 +60,7 @@ export default function ArtistsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 py-8 pt-24">
       <h1 className="text-3xl font-bold mb-8">Artists</h1>
       
       {artists.length === 0 ? (

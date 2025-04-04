@@ -157,7 +157,7 @@ function SearchPageContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 py-20 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-900 py-20 pt-28 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
         <div className="mb-10">
           <h1 className="text-3xl font-bold text-white mb-6">Search Results</h1>

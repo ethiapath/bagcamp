@@ -1,14 +1,46 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '@/lib/auth/AuthContext';
-import { FiMenu, FiX, FiUser } from 'react-icons/fi';
+import { FiMenu, FiX, FiUser, FiMusic } from 'react-icons/fi';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 export default function Navbar() {
   const { user, signOut, isLoading } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [hasArtistProfile, setHasArtistProfile] = useState(false);
+
+  useEffect(() => {
+    const checkArtistProfile = async () => {
+      if (!user) {
+        setHasArtistProfile(false);
+        return;
+      }
+
+      try {
+        const { data, error } = await supabase
+          .from('artists')
+          .select('id')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+        setHasArtistProfile(!!data);
+      } catch (err) {
+        console.error('Error checking artist profile:', err);
+        setHasArtistProfile(false);
+      }
+    };
+
+    checkArtistProfile();
+  }, [user]);
 
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const toggleUserMenu = () => setIsUserMenuOpen(!isUserMenuOpen);
@@ -60,6 +92,29 @@ export default function Navbar() {
                       >
                         My Account
                       </Link>
+                      {hasArtistProfile ? (
+                        <Link
+                          href="/artist/dashboard"
+                          className="block px-4 py-2 text-sm hover:bg-gray-700 transition"
+                          onClick={closeMenus}
+                        >
+                          <span className="flex items-center">
+                            <FiMusic className="mr-2" />
+                            Artist Dashboard
+                          </span>
+                        </Link>
+                      ) : (
+                        <Link
+                          href="/artist/create"
+                          className="block px-4 py-2 text-sm hover:bg-gray-700 transition"
+                          onClick={closeMenus}
+                        >
+                          <span className="flex items-center">
+                            <FiMusic className="mr-2" />
+                            Create Artist Profile
+                          </span>
+                        </Link>
+                      )}
                       <Link
                         href="/collection"
                         className="block px-4 py-2 text-sm hover:bg-gray-700 transition"
@@ -132,6 +187,21 @@ export default function Navbar() {
                     <Link href="/account" className="hover:text-purple-400 transition pl-2" onClick={closeMenus}>
                       My Account
                     </Link>
+                    {hasArtistProfile ? (
+                      <Link href="/artist/dashboard" className="hover:text-purple-400 transition pl-2" onClick={closeMenus}>
+                        <span className="flex items-center">
+                          <FiMusic className="mr-2" />
+                          Artist Dashboard
+                        </span>
+                      </Link>
+                    ) : (
+                      <Link href="/artist/create" className="hover:text-purple-400 transition pl-2" onClick={closeMenus}>
+                        <span className="flex items-center">
+                          <FiMusic className="mr-2" />
+                          Create Artist Profile
+                        </span>
+                      </Link>
+                    )}
                     <Link href="/collection" className="hover:text-purple-400 transition pl-2" onClick={closeMenus}>
                       My Collection
                     </Link>

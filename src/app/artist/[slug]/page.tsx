@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { FiMusic, FiPackage, FiExternalLink, FiShare2, FiHeart, FiStar } from 'react-icons/fi';
 
 const supabase = createClient(

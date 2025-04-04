@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/lib/auth/AuthContext';
+import { useAuth } from '@/hooks/useAuth';
 import { createClient } from '@supabase/supabase-js';
 import { FiSave, FiPlus, FiX, FiMusic, FiMapPin, FiLink, FiGlobe, FiTag } from 'react-icons/fi';
 

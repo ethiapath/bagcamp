@@ -27,11 +27,11 @@ This document outlines the incremental development approach for Bagcamp, breakin
 - [x] Implement artist analytics view
 
 ### 1.3 Music Catalog
-- [ ] Create release detail page 
-- [ ] Implement track listing component
-- [ ] Add basic audio preview capability
-- [ ] Implement release filtering/sorting
-- [ ] Create basic release upload form
+- [x] Create release detail page 
+- [x] Implement track listing component
+- [x] Add basic audio preview capability
+- [x] Implement release filtering/sorting
+- [x] Create basic release upload form
 
 ### 1.4 Core Navigation & Search
 - [ ] Implement global search component

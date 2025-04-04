@@ -1,32 +1,33 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useAuth } from '@/lib/auth/AuthContext';
-import { createClient } from '@supabase/supabase-js';
+import { useAuth } from '@/hooks/useAuth';
+import { createClient } from '@/utils/supabase/client';
 import { FiEdit2, FiMusic, FiPackage, FiBarChart2, FiPlus, FiSettings, FiAlertCircle } from 'react-icons/fi';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+import ReleasesList from '@/components/artist/ReleasesList';
 
 interface Artist {
   id: string;
   name: string;
   bio: string | null;
   location: string | null;
-  genres: string[];
-  website_url: string | null;
-  social_links: { platform: string; url: string }[];
-  image_url: string | null;
+  genres: string[] | null;
+  profile_image_url: string | null;
+  social_links: { platform: string; url: string }[] | null;
   created_at: string;
+  updated_at: string;
+  user_id: string;
 }
 
-export default function ArtistDashboardPage() {
+// Create a component that safely uses useSearchParams with Suspense
+function ArtistDashboardContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const activeTab = searchParams.get('tab') || 'overview';
   const { user } = useAuth();
+  const supabase = createClient();
   
   const [artist, setArtist] = useState<Artist | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,10 +41,10 @@ export default function ArtistDashboardPage() {
 
   // Redirect if not logged in
   useEffect(() => {
-    if (!user) {
+    if (!user && !isLoading) {
       router.push('/login?redirect=/artist/dashboard');
     }
-  }, [user, router]);
+  }, [user, router, isLoading]);
 
   // Load artist profile
   useEffect(() => {
@@ -54,28 +55,42 @@ export default function ArtistDashboardPage() {
       setError(null);
       
       try {
-        const { data, error } = await supabase
+        const { data: artistData, error: artistError } = await supabase
           .from('artists')
           .select('*')
-          .eq('id', user.id)
+          .eq('user_id', user.id)
           .single();
         
-        if (error) throw error;
+        if (artistError) {
+          if (artistError.code === 'PGRST116') {
+            // No artist profile found, redirect to create page
+            router.push('/artist/create');
+            return;
+          }
+          throw artistError;
+        }
         
-        if (data) {
-          setArtist(data as Artist);
+        if (artistData) {
+          setArtist(artistData as Artist);
           
-          // Fetch stats (for now we'll use mock data, but this would connect to real tables)
-          // This is where we'd count releases, merchandise, followers, etc.
+          // Fetch stats
+          const [releasesResponse, merchandiseResponse] = await Promise.all([
+            supabase
+              .from('releases')
+              .select('id', { count: 'exact' })
+              .eq('artist_id', artistData.id),
+            supabase
+              .from('merchandise')
+              .select('id', { count: 'exact' })
+              .eq('artist_id', artistData.id)
+          ]);
+          
           setStats({
-            releases: 0, // This would be a count from the releases table
-            merchandiseItems: 0, // This would be a count from the merchandise table
-            followers: 0, // This would be a count from a followers/following table
-            sales: 0 // This would be a sum from a sales/transactions table
+            releases: releasesResponse.count || 0,
+            merchandiseItems: merchandiseResponse.count || 0,
+            followers: 0, // This would be a count from a followers/following table (future feature)
+            sales: 0 // This would be a sum from a sales/transactions table (future feature)
           });
-        } else {
-          // No artist profile found, redirect to create page
-          router.push('/artist/create');
         }
       } catch (err: any) {
         console.error('Error fetching artist profile:', err);
@@ -86,13 +101,19 @@ export default function ArtistDashboardPage() {
     };
     
     fetchArtistProfile();
-  }, [user, router]);
+  }, [user, router, supabase]);
 
   if (!user) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <p className="text-lg">Please log in to access your artist dashboard.</p>
+          <Link 
+            href="/login?redirect=/artist/dashboard"
+            className="mt-4 inline-block px-4 py-2 bg-indigo-600 text-white rounded-md"
+          >
+            Log in
+          </Link>
         </div>
       </div>
     );
@@ -111,13 +132,13 @@ export default function ArtistDashboardPage() {
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center max-w-md mx-auto p-6 bg-gray-800 rounded-lg shadow-lg">
+        <div className="text-center max-w-md mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-lg">
           <FiAlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
-          <h2 className="text-xl font-bold text-white mb-2">Error Loading Dashboard</h2>
-          <p className="text-gray-300 mb-4">{error}</p>
+          <h2 className="text-xl font-bold mb-2">Error Loading Dashboard</h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">{error}</p>
           <button
             onClick={() => window.location.reload()}
-            className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
             Try Again
           </button>
@@ -127,25 +148,25 @@ export default function ArtistDashboardPage() {
   }
 
   return (
-    <div className="min-h-screen py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-b from-gray-900 to-black">
+    <div className="container mx-auto py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-white">{artist?.name} Dashboard</h1>
-            <p className="text-gray-400 mt-1">Manage your music, merchandise, and profile</p>
+            <h1 className="text-3xl font-bold">{artist?.name} Dashboard</h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">Manage your music, merchandise, and profile</p>
           </div>
           
           <div className="mt-4 md:mt-0">
             <Link
-              href={`/artist/${user.id}`}
-              className="inline-flex items-center px-4 py-2 border border-gray-600 rounded-md shadow-sm text-sm font-medium text-white bg-gray-800 hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500 mr-3"
+              href={`/artist/${artist?.id}`}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 mr-3"
             >
               View Public Profile
             </Link>
             <Link
               href="/artist/edit"
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
               <FiEdit2 className="-ml-1 mr-2 h-4 w-4" />
               Edit Profile
@@ -155,260 +176,265 @@ export default function ArtistDashboardPage() {
         
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-gray-800 rounded-lg shadow-md p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
             <div className="flex items-center">
-              <div className="p-3 rounded-md bg-purple-900 bg-opacity-50">
-                <FiMusic className="h-6 w-6 text-purple-400" />
+              <div className="p-3 rounded-md bg-indigo-100 dark:bg-indigo-900">
+                <FiMusic className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-400">Releases</h3>
-                <p className="text-2xl font-semibold text-white">{stats.releases}</p>
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Releases</h3>
+                <p className="text-2xl font-semibold">{stats.releases}</p>
               </div>
             </div>
           </div>
           
-          <div className="bg-gray-800 rounded-lg shadow-md p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
             <div className="flex items-center">
-              <div className="p-3 rounded-md bg-indigo-900 bg-opacity-50">
-                <FiPackage className="h-6 w-6 text-indigo-400" />
+              <div className="p-3 rounded-md bg-purple-100 dark:bg-purple-900">
+                <FiPackage className="h-6 w-6 text-purple-600 dark:text-purple-400" />
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-400">Merchandise</h3>
-                <p className="text-2xl font-semibold text-white">{stats.merchandiseItems}</p>
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Merchandise</h3>
+                <p className="text-2xl font-semibold">{stats.merchandiseItems}</p>
               </div>
             </div>
           </div>
           
-          <div className="bg-gray-800 rounded-lg shadow-md p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
             <div className="flex items-center">
-              <div className="p-3 rounded-md bg-pink-900 bg-opacity-50">
-                <svg className="h-6 w-6 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="p-3 rounded-md bg-pink-100 dark:bg-pink-900">
+                <svg className="h-6 w-6 text-pink-600 dark:text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                 </svg>
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-400">Followers</h3>
-                <p className="text-2xl font-semibold text-white">{stats.followers}</p>
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Followers</h3>
+                <p className="text-2xl font-semibold">{stats.followers}</p>
               </div>
             </div>
           </div>
           
-          <div className="bg-gray-800 rounded-lg shadow-md p-4">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4">
             <div className="flex items-center">
-              <div className="p-3 rounded-md bg-green-900 bg-opacity-50">
-                <FiBarChart2 className="h-6 w-6 text-green-400" />
+              <div className="p-3 rounded-md bg-green-100 dark:bg-green-900">
+                <FiBarChart2 className="h-6 w-6 text-green-600 dark:text-green-400" />
               </div>
               <div className="ml-4">
-                <h3 className="text-sm font-medium text-gray-400">Sales</h3>
-                <p className="text-2xl font-semibold text-white">${stats.sales}</p>
+                <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400">Sales</h3>
+                <p className="text-2xl font-semibold">${stats.sales.toFixed(2)}</p>
               </div>
             </div>
           </div>
         </div>
         
-        {/* Main Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Profile Summary */}
-          <div className="bg-gray-800 rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-bold text-white mb-4">Your Profile</h2>
-            
-            <div className="mb-6">
-              <div className="w-32 h-32 mx-auto bg-gray-700 rounded-full overflow-hidden mb-4">
-                {artist?.image_url ? (
-                  <img 
-                    src={artist.image_url} 
-                    alt={artist.name} 
-                    className="w-full h-full object-cover" 
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-purple-900">
-                    <span className="text-3xl font-bold text-white">{artist?.name.charAt(0)}</span>
-                  </div>
-                )}
-              </div>
-              
-              <h3 className="text-xl font-semibold text-white text-center">{artist?.name}</h3>
-              <p className="text-gray-400 text-center mt-1">{artist?.location || 'Location not specified'}</p>
-            </div>
-            
-            <div className="space-y-4">
-              <div>
-                <h4 className="text-sm font-medium text-gray-400 mb-1">Bio</h4>
-                <p className="text-white text-sm">
-                  {artist?.bio || 'No bio provided. Add a bio to tell fans about yourself and your music.'}
-                </p>
-              </div>
-              
-              <div>
-                <h4 className="text-sm font-medium text-gray-400 mb-1">Genres</h4>
-                <div className="flex flex-wrap gap-2">
-                  {artist?.genres.map(genre => (
-                    <span 
-                      key={genre} 
-                      className="px-2 py-1 bg-gray-700 rounded-full text-xs text-gray-300"
-                    >
-                      {genre}
-                    </span>
-                  ))}
-                  {!artist?.genres.length && (
-                    <p className="text-gray-500 text-sm">No genres specified</p>
-                  )}
-                </div>
-              </div>
-              
-              <div>
-                <h4 className="text-sm font-medium text-gray-400 mb-1">Links</h4>
-                <div className="space-y-2">
-                  {artist?.website_url && (
-                    <a 
-                      href={artist.website_url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-purple-400 hover:text-purple-300 text-sm block"
-                    >
-                      {artist.website_url}
-                    </a>
-                  )}
-                  
-                  {artist?.social_links?.map((link, index) => (
-                    <a 
-                      key={index}
-                      href={link.url} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
-                      className="text-purple-400 hover:text-purple-300 text-sm block"
-                    >
-                      {link.platform}
-                    </a>
-                  ))}
-                  
-                  {(!artist?.website_url && (!artist?.social_links || artist.social_links.length === 0)) && (
-                    <p className="text-gray-500 text-sm">No links provided</p>
-                  )}
-                </div>
-              </div>
-            </div>
-            
-            <div className="mt-6">
+        {/* Tabs */}
+        <div className="mb-8">
+          <div className="border-b border-gray-200 dark:border-gray-700">
+            <nav className="-mb-px flex space-x-8">
               <Link
-                href="/artist/edit"
-                className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                href="/artist/dashboard?tab=overview"
+                className={`${
+                  activeTab === 'overview'
+                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
               >
-                <FiEdit2 className="-ml-1 mr-2 h-4 w-4" />
-                Edit Profile
+                Overview
               </Link>
-            </div>
+              
+              <Link
+                href="/artist/dashboard?tab=releases"
+                className={`${
+                  activeTab === 'releases'
+                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              >
+                Releases
+              </Link>
+              
+              <Link
+                href="/artist/dashboard?tab=merchandise"
+                className={`${
+                  activeTab === 'merchandise'
+                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              >
+                Merchandise
+              </Link>
+              
+              <Link
+                href="/artist/dashboard?tab=fans"
+                className={`${
+                  activeTab === 'fans'
+                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              >
+                Fans
+              </Link>
+              
+              <Link
+                href="/artist/dashboard?tab=settings"
+                className={`${
+                  activeTab === 'settings'
+                    ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-400 dark:hover:text-gray-300'
+                } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
+              >
+                Settings
+              </Link>
+            </nav>
           </div>
-          
-          {/* Music & Merchandise Section */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Music Releases */}
-            <div className="bg-gray-800 rounded-lg shadow-md p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-white">Your Music</h2>
-                <Link
-                  href="/artist/releases/new"
-                  className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                >
-                  <FiPlus className="-ml-1 mr-1 h-4 w-4" />
-                  Add Release
-                </Link>
-              </div>
-              
-              {stats.releases > 0 ? (
-                <div className="space-y-4">
-                  {/* Would map over actual releases here */}
-                  <p className="text-gray-400">Your releases will appear here</p>
+        </div>
+        
+        {/* Tab Content */}
+        <div>
+          {activeTab === 'overview' && (
+            <div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+                  <h2 className="text-lg font-medium mb-4">Recent Activity</h2>
+                  <p className="text-gray-500 dark:text-gray-400 italic">Activity feed coming soon</p>
                 </div>
-              ) : (
-                <div className="text-center py-12 bg-gray-900 rounded-lg">
-                  <FiMusic className="mx-auto h-12 w-12 text-gray-600 mb-4" />
-                  <h3 className="text-lg font-medium text-white mb-2">No Music Yet</h3>
-                  <p className="text-gray-400 mb-4 max-w-md mx-auto">
-                    Share your music with the world! Add your first release to get started.
-                  </p>
-                  <Link
-                    href="/artist/releases/new"
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                  >
-                    <FiPlus className="-ml-1 mr-2 h-4 w-4" />
-                    Add Your First Release
-                  </Link>
-                </div>
-              )}
-            </div>
-            
-            {/* Merchandise */}
-            <div className="bg-gray-800 rounded-lg shadow-md p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-white">Your Merchandise</h2>
-                <Link
-                  href="/artist/merchandise/new"
-                  className="inline-flex items-center px-3 py-1.5 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                >
-                  <FiPlus className="-ml-1 mr-1 h-4 w-4" />
-                  Add Merch
-                </Link>
-              </div>
-              
-              {stats.merchandiseItems > 0 ? (
-                <div className="space-y-4">
-                  {/* Would map over actual merchandise here */}
-                  <p className="text-gray-400">Your merchandise will appear here</p>
-                </div>
-              ) : (
-                <div className="text-center py-12 bg-gray-900 rounded-lg">
-                  <FiPackage className="mx-auto h-12 w-12 text-gray-600 mb-4" />
-                  <h3 className="text-lg font-medium text-white mb-2">No Merchandise Yet</h3>
-                  <p className="text-gray-400 mb-4 max-w-md mx-auto">
-                    Sell merchandise to your fans! T-shirts, vinyl, physical media, or digital goods.
-                  </p>
-                  <Link
-                    href="/artist/merchandise/new"
-                    className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
-                  >
-                    <FiPlus className="-ml-1 mr-2 h-4 w-4" />
-                    Add Your First Item
-                  </Link>
-                </div>
-              )}
-            </div>
-            
-            {/* Account Settings */}
-            <div className="bg-gray-800 rounded-lg shadow-md p-6">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-xl font-bold text-white">Settings & Actions</h2>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Link
-                  href="/artist/settings"
-                  className="flex items-center p-4 bg-gray-700 rounded-lg hover:bg-gray-600"
-                >
-                  <FiSettings className="h-5 w-5 text-gray-400 mr-3" />
-                  <div>
-                    <h3 className="text-white font-medium">Artist Settings</h3>
-                    <p className="text-gray-400 text-sm">Payment, privacy, and account options</p>
-                  </div>
-                </Link>
                 
-                <Link
-                  href="/account"
-                  className="flex items-center p-4 bg-gray-700 rounded-lg hover:bg-gray-600"
-                >
-                  <svg className="h-5 w-5 text-gray-400 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  <div>
-                    <h3 className="text-white font-medium">Account Settings</h3>
-                    <p className="text-gray-400 text-sm">Manage your personal account</p>
+                <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+                  <h2 className="text-lg font-medium mb-4">Quick Actions</h2>
+                  <div className="space-y-4">
+                    <Link 
+                      href="/artist/releases/create"
+                      className="flex items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600"
+                    >
+                      <FiMusic className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                      <div className="ml-4">
+                        <p className="font-medium">Upload New Release</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Add albums, EPs, singles or mixes to your catalog</p>
+                      </div>
+                    </Link>
+                    
+                    <Link 
+                      href="/artist/merchandise/create"
+                      className="flex items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600"
+                    >
+                      <FiPackage className="h-6 w-6 text-purple-600 dark:text-purple-400" />
+                      <div className="ml-4">
+                        <p className="font-medium">Add Merchandise</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Create and sell physical or digital merchandise</p>
+                      </div>
+                    </Link>
+                    
+                    <Link 
+                      href="/artist/edit"
+                      className="flex items-center p-4 bg-gray-50 dark:bg-gray-700 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600"
+                    >
+                      <FiSettings className="h-6 w-6 text-gray-600 dark:text-gray-400" />
+                      <div className="ml-4">
+                        <p className="font-medium">Update Profile</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Edit your bio, social links and profile image</p>
+                      </div>
+                    </Link>
                   </div>
-                </Link>
+                </div>
+              </div>
+              
+              <div className="mt-8">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-lg font-medium">Your Releases</h2>
+                  <Link 
+                    href="/artist/dashboard?tab=releases"
+                    className="text-sm text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+                  >
+                    View All
+                  </Link>
+                </div>
+                {artist && <ReleasesList artistId={artist.id} limit={3} showAllLink={false} isOwner={true} />}
               </div>
             </div>
-          </div>
+          )}
+          
+          {activeTab === 'releases' && (
+            <div>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold">Your Releases</h2>
+                <Link 
+                  href="/artist/releases/create"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <FiPlus className="-ml-1 mr-2 h-4 w-4" />
+                  New Release
+                </Link>
+              </div>
+              
+              {artist && <ReleasesList artistId={artist.id} limit={0} showAllLink={false} isOwner={true} />}
+            </div>
+          )}
+          
+          {activeTab === 'merchandise' && (
+            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold">Your Merchandise</h2>
+                <Link 
+                  href="/artist/merchandise/create"
+                  className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  <FiPlus className="-ml-1 mr-2 h-4 w-4" />
+                  New Item
+                </Link>
+              </div>
+              
+              <p className="text-gray-500 dark:text-gray-400 italic text-center my-8">Merchandise management coming soon</p>
+            </div>
+          )}
+          
+          {activeTab === 'fans' && (
+            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+              <h2 className="text-xl font-semibold mb-6">Your Fans</h2>
+              <p className="text-gray-500 dark:text-gray-400 italic text-center my-8">Fan management and analytics coming soon</p>
+            </div>
+          )}
+          
+          {activeTab === 'settings' && (
+            <div className="bg-white dark:bg-gray-800 shadow-md rounded-lg p-6">
+              <h2 className="text-xl font-semibold mb-6">Artist Settings</h2>
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Profile Settings</h3>
+                  <Link 
+                    href="/artist/edit"
+                    className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+                  >
+                    Edit your artist profile
+                  </Link>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Account Settings</h3>
+                  <Link 
+                    href="/account"
+                    className="text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300"
+                  >
+                    Manage your account
+                  </Link>
+                </div>
+                
+                <div>
+                  <h3 className="text-lg font-medium mb-2">Payment Settings</h3>
+                  <p className="text-gray-500 dark:text-gray-400 italic">Payment settings coming soon</p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ArtistDashboardPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <ArtistDashboardContent />
+    </Suspense>
   );
 } 

@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useAuth } from '@/lib/auth/AuthContext';
+import Image from 'next/image';
+import { useAuth } from '@/hooks/useAuth';
 import { FiMenu, FiX, FiUser, FiMusic } from 'react-icons/fi';
 import { createClient } from '@supabase/supabase-js';
 
@@ -12,7 +13,9 @@ const supabase = createClient(
 );
 
 export default function Navbar() {
-  const { user, signOut, isLoading } = useAuth();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+  const { user, signOut, loading } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [hasArtistProfile, setHasArtistProfile] = useState(false);
@@ -70,7 +73,7 @@ export default function Navbar() {
               About
             </Link>
             
-            {!isLoading && (
+            {!loading && (
               user ? (
                 <div className="relative">
                   <button 
@@ -173,7 +176,7 @@ export default function Navbar() {
                 About
               </Link>
               
-              {!isLoading && (
+              {!loading && (
                 user ? (
                   <>
                     <div className="pt-2 border-t border-gray-700">

@@ -25,6 +25,7 @@ This document outlines the incremental development approach for Bagcamp, breakin
 - [x] Implement profile image uploads
 - [x] Create artist edit profile functionality
 - [x] Implement artist analytics view
+- [x] Add fallback handling for schema variations
 
 ### 1.3 Music Catalog
 - [x] Create release detail page 
@@ -33,16 +34,25 @@ This document outlines the incremental development approach for Bagcamp, breakin
 - [x] Implement release filtering/sorting
 - [x] Create basic release upload form
 
-### 1.4 Core Navigation & Search
-- [ ] Implement global search component
-- [ ] Create genre-based browsing
-- [ ] Implement tag-based filtering
-- [ ] Add basic recommendations
+### 1.4 Genre Browsing
+- [x] Create genre index page
+- [x] Implement per-genre detail pages
+- [x] Add artist/release filtering by genre
+- [x] Integrate with main navigation
+- [x] Create dynamic genre visualization
+
+### 1.5 Search & Navigation
+- [x] Implement global search component
+- [x] Create comprehensive search results page
+- [x] Fix Next.js build issues with Suspense
+- [ ] Add tag-based filtering
+- [ ] Implement enhanced recommendations
 
 ### Success Criteria
 - Users can sign up, log in, and manage profiles
 - Artists can create and edit their profile
 - Users can browse artist profiles and music releases
+- Users can browse music by genre
 - Basic music listening experience is functional
 - Navigation and search capabilities are implemented
 

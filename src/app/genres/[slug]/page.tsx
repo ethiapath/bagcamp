@@ -69,7 +69,7 @@ export default function GenreDetailPage() {
         const formattedArtists = artistsData?.map(artist => ({
           id: artist.id,
           name: artist.name,
-          image_url: artist.profile_image_url, // Field in the database
+          image_url: artist.profile_image_url, // Mapping from database field
           bio: artist.bio,
           location: artist.location,
           created_at: artist.created_at,

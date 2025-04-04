@@ -90,14 +90,14 @@ function SearchPageContent() {
       // Search for releases
       const { data: releases } = await supabase
         .from('releases')
-        .select('id, title, cover_image_url, description, year, artist_id, type, artists(id, name)')
+        .select('id, title, cover_image_url, description, year, artist_id, type, artists(id, name, genres)')
         .or(`title.ilike.%${query}%,description.ilike.%${query}%`)
         .limit(20);
       
       // Search for tracks
       const { data: tracks } = await supabase
         .from('tracks')
-        .select('id, title, release_id, releases(id, title, cover_image_url, artists(id, name))')
+        .select('id, title, release_id, releases(id, title, cover_image_url, artists(id, name, genres))')
         .ilike('title', `%${query}%`)
         .limit(20);
       
@@ -120,7 +120,7 @@ function SearchPageContent() {
           artist_id: release.artist_id,
           year: release.year,
           description: release.description ?? undefined,
-          genres: [] // We'd need to fetch genres for releases
+          genres: release.artists?.genres ?? []
         })),
         ...(tracks || []).map((track): SearchResult => ({
           id: track.id,
@@ -131,7 +131,7 @@ function SearchPageContent() {
           artist_id: track.releases?.artists?.id,
           release_title: track.releases?.title,
           release_id: track.release_id,
-          genres: [] // We'd need to fetch genres for tracks
+          genres: track.releases?.artists?.genres ?? []
         }))
       ];
       

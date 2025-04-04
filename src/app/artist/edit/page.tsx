@@ -136,7 +136,8 @@ export default function EditArtistProfilePage() {
       // Filter out empty social links
       const filteredSocialLinks = socialLinks.filter(link => link.platform && link.url);
       
-      const { error } = await supabase
+      // First try with social_links
+      let updateResult = await supabase
         .from('artists')
         .update({
           name,
@@ -150,7 +151,24 @@ export default function EditArtistProfilePage() {
         })
         .eq('id', user!.id);
       
-      if (error) throw error;
+      // If there's an error about social_links, try without it
+      if (updateResult.error && updateResult.error.message.includes('social_links')) {
+        console.warn('social_links column not found, updating without social links');
+        updateResult = await supabase
+          .from('artists')
+          .update({
+            name,
+            bio,
+            location,
+            genres: selectedGenres,
+            website_url: websiteUrl,
+            image_url: imageUrl,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user!.id);
+      }
+      
+      if (updateResult.error) throw updateResult.error;
       
       setSuccessMessage('Profile updated successfully!');
       

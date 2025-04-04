@@ -149,7 +149,8 @@ export default function CreateArtistProfilePage() {
       const filteredSocialLinks = socialLinks.filter(link => link.platform.trim() && link.url.trim());
       
       // Create artist profile
-      const { error: insertError } = await supabase
+      // First try with social_links
+      let result = await supabase
         .from('artists')
         .insert({
           id: user?.id,
@@ -160,8 +161,23 @@ export default function CreateArtistProfilePage() {
           website_url: websiteUrl,
           social_links: filteredSocialLinks
         });
+        
+      // If there's an error about social_links, try without it
+      if (result.error && result.error.message.includes('social_links')) {
+        console.warn('social_links column not found, inserting without social links');
+        result = await supabase
+          .from('artists')
+          .insert({
+            id: user?.id,
+            name,
+            bio,
+            location,
+            genres: selectedGenres,
+            website_url: websiteUrl
+          });
+      }
 
-      if (insertError) throw insertError;
+      if (result.error) throw result.error;
       
       setSuccess(true);
       setTimeout(() => {

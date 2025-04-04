@@ -8,12 +8,15 @@
     "start": "next start",
     "lint": "next lint",
     "deploy": "node scripts/deploy.js",
-    "deploy:prod": "node scripts/deploy.js --prod"
+    "deploy:prod": "node scripts/deploy.js --prod",
+    "setup:db": "node scripts/setup-db.js"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
     "next": "15.2.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "react-icons": "^5.5.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
@@ -23,6 +26,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.2.4",
+    "supabase": "^2.20.5",
     "tailwindcss": "^4",
     "typescript": "^5",
     "vercel": "^41.4.1"

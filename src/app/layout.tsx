@@ -1,43 +1,32 @@
-import type { Metadata } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
-import "./globals.css";
-import Navbar from "@/components/layout/Navbar";
-import Footer from "@/components/layout/Footer";
+import './globals.css';
+import type { Metadata } from 'next';
+import { Inter } from 'next/font/google';
+import { AuthProvider } from '@/lib/auth/AuthContext';
+import Navbar from '@/components/layout/Navbar';
+import Footer from '@/components/layout/Footer';
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-space",
-  display: "swap",
-});
+const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: "Bagcamp | Electronic Music Platform Supporting LGBTQ+ Artists",
-  description: "Discover, stream, and purchase independent electronic music on Bagcamp, a platform dedicated to empowering trans, GNC, and LGBTQ+ artists.",
-  keywords: ["electronic music", "independent music", "LGBTQ+", "trans artists", "music platform", "bandcamp alternative"],
-  authors: [{ name: "DJ Bag Lady", url: "https://bagcamp.xyz" }],
+  title: 'Bagcamp - Independent Music Platform',
+  description: 'The premier platform for independent electronic music, dedicated to empowering trans, GNC, and LGBTQ+ artists.',
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`}>
-      <body className="antialiased bg-black text-white">
-        <div className="flex flex-col min-h-screen">
-          <Navbar />
-          <main className="flex-grow pt-16">
-            {children}
-          </main>
-          <Footer />
-        </div>
+    <html lang="en">
+      <body className={inter.className}>
+        <AuthProvider>
+          <div className="flex flex-col min-h-screen">
+            <Navbar />
+            <main className="flex-grow">{children}</main>
+            <Footer />
+          </div>
+        </AuthProvider>
       </body>
     </html>
   );

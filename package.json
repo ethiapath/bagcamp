@@ -12,8 +12,14 @@
     "setup:db": "node scripts/setup-db.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.445.0",
     "@supabase/auth-helpers-nextjs": "^0.10.0",
     "@supabase/supabase-js": "^2.49.4",
+    "@types/cookie": "^0.5.1",
+    "@types/jsonwebtoken": "^9.0.3",
+    "@vercel/analytics": "^1.5.0",
+    "cookie": "^0.5.0",
+    "jsonwebtoken": "^9.0.2",
     "next": "15.2.4",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

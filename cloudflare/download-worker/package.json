@@ -1,0 +1,19 @@
+{
+  "name": "bagcamp-download-authenticator",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker for authenticating Bagcamp downloads",
+  "main": "index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "cookie": "^0.5.0",
+    "jose": "^4.14.4"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20230921.0",
+    "typescript": "^5.0.4",
+    "wrangler": "^3.0.0"
+  }
+} 

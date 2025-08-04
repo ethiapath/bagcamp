@@ -1,0 +1,24 @@
+name = "bagcamp-download-authenticator"
+main = "index.ts"
+compatibility_date = "2024-07-01"
+
+# Routes to trigger this worker (update with your domain)
+[[routes]]
+pattern = "media.yourdomain.com/artists/*"
+zone_name = "yourdomain.com"
+
+[[routes]]
+pattern = "media.yourdomain.com/releases/*"
+zone_name = "yourdomain.com"
+
+[[routes]]
+pattern = "media.yourdomain.com/tracks/*"
+zone_name = "yourdomain.com"
+
+# Define which environment variables the worker needs
+[vars]
+# Non-secret vars can be defined here
+# JWT_SECRET is a secret and should be set using wrangler secret put JWT_SECRET
+
+# Add nodeJS compatibility if needed
+nodejs_compat = true 
